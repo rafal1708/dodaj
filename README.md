@@ -10,8 +10,8 @@ IP-komputera:5050/książki
 Sposób użycia:
 
 Dodanie strony do bazy danych: dodaj link-do-strony-na-lubimyczytac</br>
-Usunięcie strony z bazy danych: dodaj -d link-do-strony-na-lubimyczytac 
-Dodanie książki z własnym komentarzem lub zmiana/dodanie komentarza do istniejącej już w bazie książki: dodaj -n link-do-strony-na-lubimyczytac 
+Usunięcie strony z bazy danych: dodaj -d link-do-strony-na-lubimyczytac</br>
+Dodanie książki z własnym komentarzem lub zmiana/dodanie komentarza do istniejącej już w bazie książki: dodaj -n link-do-strony-na-lubimyczytac</br>
 
 
 
