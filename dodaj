@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import requests
+import sqlite3
+from bs4 import BeautifulSoup
+import argparse
+
+parser = argparse.ArgumentParser(description="Program do zarządzania bazą danych książek",
+                                 usage="dodaj.py https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA - dodaje książkę do bazy danych",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-d', '--delete', type=str, help="Usuwa książkę z podanego linku. Użycie: dodaj.py -d https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA.")
+parser.add_argument('-n', '--notes', type=str, help="Dodaje książkę wraz z komentarzem. Użycie: dodaj.py https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA -n 'Jakis komentarz'")
+parser.add_argument("link", type=str, nargs="?", help="Link do książki na 'lubimyczytac.pl'")
+args = parser.parse_args()
+
+def add_book():
+    link = args.link
+    content = requests.get(link).text
+    soup = BeautifulSoup(content, "html.parser")
+    description = soup.find(id="book-description").getText()
+    book_rate_raw = soup.find(class_="rating-value__img")["alt"]
+    full_rate = (book_rate_raw[1:]).replace(",",".")
+    full_rate = float(full_rate)
+    raw_book_title = soup.find(class_="book__title").getText()
+    book_title = raw_book_title.strip()
+    cleared_title = book_title.replace(" ", "")
+    ean = soup.find(property="books:isbn")["content"]
+    image = soup.find("source")["srcset"]
+    author = soup.find(property="books:author")["content"]
+    image_link = requests.get(image)
+    with open(f"./static/book_cover/{cleared_title}.jpg", "wb") as file:
+        file.write(image_link.content)
+    cover_path = f"static/book_cover/{cleared_title}.jpg"
+    return book_title, author, description, link, ean, full_rate, cover_path
+
+
+if args.delete:
+    if args.delete.startswith("https://lubimyczytac.pl/ksiazka/"):
+        db = sqlite3.connect("mojabaza.db")
+        cursor = db.cursor()
+        cursor.execute("SELECT * from books WHERE link = ?", (args.delete,))
+        book = cursor.fetchall()
+        if book:
+            cursor.execute("DELETE FROM books WHERE link = ?", (args.delete,))
+            db.commit()
+            db.close()
+            print("Usunięte!")
+        else:
+            print("Nie ma tego w bazie")
+            db.close()
+    else:
+        print("Podaj poprawny link do usunięcia, np.: https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA")
+
+elif args.notes:
+    db = sqlite3.connect("mojabaza.db")
+    cursor = db.cursor()
+    cursor.execute("SELECT * from books WHERE link = ?", (args.link,))
+    book = cursor.fetchall()
+    if book:
+        question = input("Książka jest już w bazie. Wybierz co chcesz zrobić:\n1)Usuń starą notatkę i dodaj nową."
+                         "\n2)Dodaj tę notatkę do istniejącej w bazie."
+                         "\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
+        while question:
+            if question == "1":
+                cursor.execute("UPDATE books SET notes=? WHERE link = ?", (args.notes, args.link,))
+                db.commit()
+                print("Zapisano nowy komentarz")
+                question = False
+            elif question == "2":
+                cursor.execute("UPDATE books SET notes=notes || ' ' || ? WHERE link = ?", (args.notes, args.link,))
+                db.commit()
+                print("Zaktualizowano komentarz")
+                question = False
+            elif question == "3":
+                question = False
+            else:
+                question = input("Masz tylko te trzy rzeczy do wyboru:\n1)Zaktualizuj notatkę.\n2)Dodaj tę notatkę do istniejącej w bazie\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
+        db.close()
+
+    else:
+        book_title, author, desc, link, ean, full_rate, cover_path = add_book()
+        cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, notes, cover) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, args.notes, cover_path))
+        db.commit()
+        db.close()
+else:
+    db = sqlite3.connect("mojabaza.db")
+    cursor = db.cursor()
+    cursor.execute("SELECT * from books WHERE link = ?", (args.link,))
+    book = cursor.fetchall()
+    if book:
+        print("Książka jest już w bazie")
+    else:
+        notes = ""
+        book_title, author, desc, link, ean, full_rate, cover_path = add_book()
+        cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, cover, notes) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, cover_path, notes))
+        db.commit()
+        db.close()
+        print("Dodano nową książkę")
