@@ -1,6 +1,5 @@
 import socket
 import sqlite3
-
 from flask import Flask, render_template, request, jsonify
 
 
@@ -10,6 +9,19 @@ def read_sql():
     cursor.execute("SELECT cover, title, author, description, link, ean, rate, notes FROM books;")
     result = cursor.fetchall()
     return result
+
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("208.67.222.222", 80))  # Try to connect any site (here OpenDNS server), to check used ip address
+    except:
+        ip_address = "127.0.0.1"
+        s.close()
+        return ip_address
+    ip_address = s.getsockname()[0]
+    s.close()
+    return ip_address
 
 
 app = Flask(__name__)
@@ -44,7 +56,7 @@ def api_book():
         return jsonify([dict(row) for row in book])
 
 
-ip_server = (socket.gethostbyname(socket.gethostname()))
+host_ip = get_ip()
 
 if __name__ == "__main__":
-    app.run(debug=True, host=ip_server, port=5050)
+    app.run(debug=True, host=host_ip, port=5050)

@@ -13,6 +13,31 @@ parser.add_argument('-n', '--notes', type=str, help="Dodaje książkę wraz z ko
 parser.add_argument("link", type=str, nargs="?", help="Link do książki na 'lubimyczytac.pl'")
 args = parser.parse_args()
 
+print(args.delete, args.notes, args.link)
+
+
+def link_validation(link):
+    try:
+        if link.startswith("https://lubimyczytac.pl/ksiazka/"):
+            return True
+        else:
+            return False
+    except AttributeError:
+        return False
+
+
+def is_book_in_database(link):
+    db = sqlite3.connect("mojabaza.db")
+    cursor = db.cursor()
+    cursor.execute("SELECT * from books WHERE link = ?", (link,))
+    book = cursor.fetchall()
+    db.close()
+    if book:
+        return True
+    else:
+        return False
+
+
 def add_book():
     link = args.link
     content = requests.get(link).text
@@ -35,64 +60,77 @@ def add_book():
 
 
 if args.delete:
-    if args.delete.startswith("https://lubimyczytac.pl/ksiazka/"):
-        db = sqlite3.connect("mojabaza.db")
-        cursor = db.cursor()
-        cursor.execute("SELECT * from books WHERE link = ?", (args.delete,))
-        book = cursor.fetchall()
-        if book:
+    if link_validation(args.delete):
+        if is_book_in_database(args.delete):
+            db = sqlite3.connect("mojabaza.db")
+            cursor = db.cursor()
             cursor.execute("DELETE FROM books WHERE link = ?", (args.delete,))
             db.commit()
             db.close()
             print("Usunięte!")
         else:
             print("Nie ma tego w bazie")
-            db.close()
     else:
         print("Podaj poprawny link do usunięcia, np.: https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA")
 
 elif args.notes:
-    db = sqlite3.connect("mojabaza.db")
-    cursor = db.cursor()
-    cursor.execute("SELECT * from books WHERE link = ?", (args.link,))
-    book = cursor.fetchall()
-    if book:
-        question = input("Książka jest już w bazie. Wybierz co chcesz zrobić:\n1)Usuń starą notatkę i dodaj nową."
+    if link_validation(args.link):
+        if is_book_in_database(args.link):
+            db = sqlite3.connect("mojabaza.db")
+            cursor = db.cursor()
+            question = input("Książka jest już w bazie. Wybierz co chcesz zrobić:\n1)Usuń starą notatkę i dodaj nową."
                          "\n2)Dodaj tę notatkę do istniejącej w bazie."
                          "\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
-        while question:
-            if question == "1":
-                cursor.execute("UPDATE books SET notes=? WHERE link = ?", (args.notes, args.link,))
+            while question:
+                if question == "1":
+                    cursor.execute("UPDATE books SET notes=? WHERE link = ?", (args.notes, args.link,))
+                    db.commit()
+                    print("Zapisano nowy komentarz")
+                    question = False
+                elif question == "2":
+                    cursor.execute("UPDATE books SET notes=notes || ' ' || ? WHERE link = ?", (args.notes, args.link,))
+                    db.commit()
+                    print("Zaktualizowano komentarz")
+                    question = False
+                elif question == "3":
+                    question = False
+                else:
+                    question = input("Masz tylko te trzy rzeczy do wyboru:\n1)Zaktualizuj notatkę.\n2)Dodaj tę notatkę do istniejącej w bazie\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
+                db.close()
+        else:
+            try:
+                book_title, author, desc, link, ean, full_rate, cover_path = add_book()
+                db = sqlite3.connect("mojabaza.db")
+                cursor = db.cursor()
+                cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, notes, cover) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, args.notes, cover_path))
                 db.commit()
-                print("Zapisano nowy komentarz")
-                question = False
-            elif question == "2":
-                cursor.execute("UPDATE books SET notes=notes || ' ' || ? WHERE link = ?", (args.notes, args.link,))
-                db.commit()
-                print("Zaktualizowano komentarz")
-                question = False
-            elif question == "3":
-                question = False
-            else:
-                question = input("Masz tylko te trzy rzeczy do wyboru:\n1)Zaktualizuj notatkę.\n2)Dodaj tę notatkę do istniejącej w bazie\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
-        db.close()
+                db.close()
+            except:
+                print("Sprawdź czy link jest poprawny")
+    else:
+        print("Sprawdź czy link jest poprawny")
 
-    else:
-        book_title, author, desc, link, ean, full_rate, cover_path = add_book()
-        cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, notes, cover) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, args.notes, cover_path))
-        db.commit()
-        db.close()
 else:
-    db = sqlite3.connect("mojabaza.db")
-    cursor = db.cursor()
-    cursor.execute("SELECT * from books WHERE link = ?", (args.link,))
-    book = cursor.fetchall()
-    if book:
-        print("Książka jest już w bazie")
+    if link_validation(args.link):
+        if is_book_in_database(args.link):
+            print("Książka jest już w bazie")
+        else:
+            notes = ""
+            db = sqlite3.connect("mojabaza.db")
+            cursor = db.cursor()
+            try:
+                book_title, author, desc, link, ean, full_rate, cover_path = add_book()
+                cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, cover, notes) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, cover_path, notes))
+                db.commit()
+                db.close()
+                print("Dodano nową książkę")
+            except AttributeError:
+                print("Sprawdź czy link prowadzi do książki")
+                db.close()
     else:
-        notes = ""
-        book_title, author, desc, link, ean, full_rate, cover_path = add_book()
-        cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, cover, notes) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, cover_path, notes))
-        db.commit()
-        db.close()
-        print("Dodano nową książkę")
+        print("Sprawdź czy link jest poprawny")
+
+
+
+
+
