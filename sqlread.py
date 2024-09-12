@@ -1,12 +1,13 @@
 import socket
 import sqlite3
+
 from flask import Flask, render_template, request, jsonify
 
 
-def read_sql():
+def read_sql(book_type):
     db = sqlite3.connect("mojabaza.db")
     cursor = db.cursor()
-    cursor.execute("SELECT cover, title, author, description, link, ean, rate, notes FROM books;")
+    cursor.execute("SELECT cover, title, author, description, link, ean, rate, notes FROM books WHERE type=?;", (book_type,))
     result = cursor.fetchall()
     return result
 
@@ -28,8 +29,15 @@ app = Flask(__name__)
 
 
 @app.route("/ksiazki")
+@app.route("/komiksy")
+@app.route("/gry")
 def ksiazki():
-    results = read_sql()
+    if request.path == "/komiksy":
+        results = read_sql("komiks")
+    elif request.path == "/ksiazki":
+        results = read_sql("książka")
+    elif request.path == "/gry":
+        results = read_sql("gra komputerowa")
     return render_template("dodaj.html", results = results)
 
 
@@ -37,6 +45,9 @@ def ksiazki():
 def api_book():
     author = request.args.get("author")
     rate = request.args.get("rate")
+    tag = request.args.get("tag")
+    category = request.args.get("category")
+
     query = "SELECT title, author, link, rate, notes FROM books WHERE 1=1"
     args = []
     if author:
@@ -45,6 +56,13 @@ def api_book():
     if rate:
         query += " AND rate >= ?"
         args.append(float(rate))
+    if tag:
+        query += " AND (description LIKE '%'|| ? ||'%' OR notes LIKE '%'|| ? ||'%')"
+        args.append(tag)
+        args.append(tag)
+    if category:
+        query += " AND type=?"
+        args.append(category)
 
     db = sqlite3.connect("mojabaza.db")
     db.row_factory = sqlite3.Row
@@ -60,3 +78,4 @@ host_ip = get_ip()
 
 if __name__ == "__main__":
     app.run(debug=True, host=host_ip, port=5050)
+

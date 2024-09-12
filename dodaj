@@ -1,136 +1,111 @@
 #!/usr/bin/env python3
 
-import requests
-import sqlite3
-from bs4 import BeautifulSoup
-import argparse
+import argparse, sqlite3
+import add_book, add_game, check
 
 parser = argparse.ArgumentParser(description="Program do zarządzania bazą danych książek",
-                                 usage="dodaj.py https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA - dodaje książkę do bazy danych",
+                                 usage="dodaj https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA - dodaje książkę do bazy danych",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-d', '--delete', type=str, help="Usuwa książkę z podanego linku. Użycie: dodaj.py -d https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA.")
-parser.add_argument('-n', '--notes', type=str, help="Dodaje książkę wraz z komentarzem. Użycie: dodaj.py https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA -n 'Jakis komentarz'")
+parser.add_argument('-d', '--delete', type=str, help="Usuwa książkę z podanego linku. Użycie: dodaj -d https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA.")
+parser.add_argument('-n', '--notes', type=str, help="Dodaje książkę wraz z komentarzem. Użycie: dodaj https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA -n 'Jakis komentarz'")
 parser.add_argument("link", type=str, nargs="?", help="Link do książki na 'lubimyczytac.pl'")
+
 args = parser.parse_args()
 
-print(args.delete, args.notes, args.link)
 
-
-def link_validation(link):
-    try:
-        if link.startswith("https://lubimyczytac.pl/ksiazka/"):
-            return True
-        else:
-            return False
-    except AttributeError:
-        return False
-
-
-def is_book_in_database(link):
+def insert_into_database(item, note):
     db = sqlite3.connect("mojabaza.db")
     cursor = db.cursor()
-    cursor.execute("SELECT * from books WHERE link = ?", (link,))
-    book = cursor.fetchall()
+    if item == "books":
+        book_title, author, desc, link, ean, full_rate, cover_path, book_type = add_book.add_book(args)
+        cursor.execute(
+            "INSERT INTO books (title, author, description, link, ean, rate, notes, cover, type) VALUES(?,?,?,?,?,?,?,?,?)",
+            (book_title, author, desc, link, ean, full_rate, note, cover_path, book_type))
+    elif item == "games":
+        game_title, author, desc, link, ean, full_rate, cover_path, item_type = add_game.add_game(args)
+        cursor.execute(
+            "INSERT INTO books (title, author, description, link, ean, rate, notes, cover, type) VALUES(?,?,?,?,?,?,?,?,?)",
+            (game_title, author, desc, link, ean, full_rate, note, cover_path, item_type))
+    db.commit()
     db.close()
-    if book:
-        return True
-    else:
-        return False
 
 
-def add_book():
-    link = args.link
-    content = requests.get(link).text
-    soup = BeautifulSoup(content, "html.parser")
-    description = soup.find(id="book-description").getText()
-    book_rate_raw = soup.find(class_="rating-value__img")["alt"]
-    full_rate = (book_rate_raw[1:]).replace(",",".")
-    full_rate = float(full_rate)
-    raw_book_title = soup.find(class_="book__title").getText()
-    book_title = raw_book_title.strip()
-    cleared_title = book_title.replace(" ", "")
-    ean = soup.find(property="books:isbn")["content"]
-    image = soup.find("source")["srcset"]
-    author = soup.find(property="books:author")["content"]
-    image_link = requests.get(image)
-    with open(f"./static/book_cover/{cleared_title}.jpg", "wb") as file:
-        file.write(image_link.content)
-    cover_path = f"static/book_cover/{cleared_title}.jpg"
-    return book_title, author, description, link, ean, full_rate, cover_path
-
-
-if args.delete:
-    if link_validation(args.delete):
-        if is_book_in_database(args.delete):
-            db = sqlite3.connect("mojabaza.db")
-            cursor = db.cursor()
-            cursor.execute("DELETE FROM books WHERE link = ?", (args.delete,))
-            db.commit()
-            db.close()
-            print("Usunięte!")
-        else:
-            print("Nie ma tego w bazie")
-    else:
-        print("Podaj poprawny link do usunięcia, np.: https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA")
-
-elif args.notes:
-    if link_validation(args.link):
-        if is_book_in_database(args.link):
-            db = sqlite3.connect("mojabaza.db")
-            cursor = db.cursor()
-            question = input("Książka jest już w bazie. Wybierz co chcesz zrobić:\n1)Usuń starą notatkę i dodaj nową."
-                         "\n2)Dodaj tę notatkę do istniejącej w bazie."
-                         "\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
-            while question:
-                if question == "1":
-                    cursor.execute("UPDATE books SET notes=? WHERE link = ?", (args.notes, args.link,))
-                    db.commit()
-                    print("Zapisano nowy komentarz")
-                    question = False
-                elif question == "2":
-                    cursor.execute("UPDATE books SET notes=notes || ' ' || ? WHERE link = ?", (args.notes, args.link,))
-                    db.commit()
-                    print("Zaktualizowano komentarz")
-                    question = False
-                elif question == "3":
-                    question = False
-                else:
-                    question = input("Masz tylko te trzy rzeczy do wyboru:\n1)Zaktualizuj notatkę.\n2)Dodaj tę notatkę do istniejącej w bazie\n3)Skoro książka jest w bazie, pomiń wszystko!\n")
-                db.close()
-        else:
-            try:
-                book_title, author, desc, link, ean, full_rate, cover_path = add_book()
+def main(args):
+    if args.delete:
+        if check.link_validation(args.delete):
+            if check.is_item_in_database(args.delete):
                 db = sqlite3.connect("mojabaza.db")
                 cursor = db.cursor()
-                cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, notes, cover) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, args.notes, cover_path))
+                cursor.execute("DELETE FROM books WHERE link = ?", (args.delete,))
                 db.commit()
                 db.close()
-            except:
-                print("Sprawdź czy link jest poprawny")
-    else:
-        print("Sprawdź czy link jest poprawny")
-
-else:
-    if link_validation(args.link):
-        if is_book_in_database(args.link):
-            print("Książka jest już w bazie")
+                print("Usunięte!")
+            else:
+                print("Nie ma tego w bazie")
         else:
-            notes = ""
-            db = sqlite3.connect("mojabaza.db")
-            cursor = db.cursor()
-            try:
-                book_title, author, desc, link, ean, full_rate, cover_path = add_book()
-                cursor.execute("INSERT INTO books (title, author, description, link, ean, rate, cover, notes) VALUES(?,?,?,?,?,?,?,?)", (book_title, author, desc, link, ean, full_rate, cover_path, notes))
-                db.commit()
-                db.close()
-                print("Dodano nową książkę")
-            except AttributeError:
-                print("Sprawdź czy link prowadzi do książki")
-                db.close()
+            print("Podaj poprawny link do usunięcia, np.: https://lubimyczytac.pl/ksiazka/*/JAKAS_KSIAZKA")
+
+    elif args.notes:
+        if check.link_validation(args.link):
+            if check.is_item_in_database(args.link):
+                db = sqlite3.connect("mojabaza.db")
+                cursor = db.cursor()
+                question = input("Ta pozycja jest już w bazie. Wybierz co chcesz zrobić:\n1)Usuń starą notatkę i dodaj nową."
+                             "\n2)Dodaj tę notatkę do istniejącej w bazie."
+                             "\n3)Skoro jest w bazie, pomiń wszystko!\n")
+                while question:
+                    if question == "1":
+                        cursor.execute("UPDATE books SET notes=? WHERE link = ?", (args.notes, args.link,))
+                        db.commit()
+                        print("Zapisano nową notatkę")
+                        question = False
+                    elif question == "2":
+                        cursor.execute("UPDATE books SET notes=notes || ' ' || ? WHERE link = ?", (args.notes, args.link,))
+                        db.commit()
+                        print("Zaktualizowano notatkę")
+                        question = False
+                    elif question == "3":
+                        question = False
+                    else:
+                        question = input("Masz tylko te trzy rzeczy do wyboru:\n1)Zaktualizuj notatkę.\n2)Dodaj tę notatkę do istniejącej w bazie\n3)Skoro jest w bazie, pomiń wszystko!\n")
+                    db.close()
+            else:
+                item = check.select_category(args.link)
+                if item == "books":
+                    try:
+                        insert_into_database("books", args.notes)
+                    except:
+                        print("Sprawdź czy link jest poprawny")
+                elif item == "games":
+                    try:
+                        insert_into_database("games", args.notes)
+                    except:
+                        print("Sprawdź czy link jest poprawny")
+        else:
+            print("Sprawdź czy link jest poprawny")
+
     else:
-        print("Sprawdź czy link jest poprawny")
+        if check.link_validation(args.link):
+            if check.is_item_in_database(args.link):
+                print("Ta pozycja jest już w bazie")
+            else:
+                item = check.select_category(args.link)
+                notes = ""
+                if item == "books":
+                    try:
+                        insert_into_database("books", notes)
+                        print("Dodano nową książkę")
+                    except AttributeError:
+                        print("Sprawdź czy link prowadzi do książki")
+                elif item == "games":
+                    try:
+                        insert_into_database("games", notes)
+                        print("Dodano nową grę")
+                    except AttributeError:
+                        print("Sprawdź czy link prowadzi do gry")
+        else:
+            print("Sprawdź czy link jest poprawny")
 
 
-
-
+main(args)
 
