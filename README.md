@@ -17,7 +17,7 @@ Dodanie strony z własnym komentarzem lub zmiana/dodanie komentarza do istnieją
 IP-komputera:5050/api</br>
 Możliwość wyszukiwania wg parametrów:</br>  
 "category" - książki, komiksy, gry komputerowe</br>
-"tag" - dowolne słowo. Wyszukiwany będzie opis danej pozycji i pole z własnym komentarzem</br>
+"tag" - dowolne słowo. Przeszukiwany będzie opis danej pozycji i pole z własnym komentarzem</br>
 "author" - wyszukuje w kolumnie "author" pasującego słowa </br>
 "rate" - czyli wg oceny książki/gry podanej na stronie.</br>
 
