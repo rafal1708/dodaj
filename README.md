@@ -5,7 +5,7 @@ Wymaga zewnętrznych bibliotek - bs4 i flask
 
 Program "dodaj", dodaje pozycję z linka do bazy danych.
 sqlread.py odczytuje tę bazę i wyświetla w przeglądarce pod adresem:</br>
-IP-komputera:5050/[książki/komiksy/gry]
+IP-komputera:5050/[książki|komiksy|gry]
 
 <h2>Sposób użycia:</h2>
 
