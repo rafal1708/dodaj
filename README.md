@@ -1,20 +1,20 @@
 # dodaj
-Tworzenie lokalnej bazy książek, w oparciu o webscarping strony lubimyczytac.
+Tworzenie lokalnej bazy książek i gier w oparciu o webscarping strony lubimyczytac i gry-online.
 
 Wymaga zewnętrznych bibliotek - bs4 i flask
 
-Program "dodaj", dodaje książke z linka do bazy danych.
-sqlread.py odczytuje tę bazę i wyświetla książki w przeglądarce pod adresem:
-IP-komputera:5050/książki
+Program "dodaj", dodaje pozycję z linka do bazy danych.
+sqlread.py odczytuje tę bazę i wyświetla w przeglądarce pod adresem:
+IP-komputera:5050/[książki/komiksy/gry]
 
 <h2>Sposób użycia:</h2>
 
-Dodanie strony do bazy danych: dodaj link-do-strony-na-lubimyczytac</br>
-Usunięcie strony z bazy danych: dodaj -d link-do-strony-na-lubimyczytac</br>
-Dodanie książki z własnym komentarzem lub zmiana/dodanie komentarza do istniejącej już w bazie książki: dodaj -n link-do-strony-na-lubimyczytac</br>
+Dodanie strony do bazy danych: dodaj link-do-strony</br>
+Usunięcie strony z bazy danych: dodaj -d link-do-strony</br>
+Dodanie strony z własnym komentarzem lub zmiana/dodanie komentarza do istniejącej już w bazie pozycji: dodaj -n link-do-strony</br>
 
-API</br>
-IP-komputera:5050/api</r>
+<h3>API</h3></br>
+IP-komputera:5050/api</br>
 Możliwość wyszukiwania wg parametru "author" i "rate", czyli wg oceny książki podanej na stronie.</br>
 
 Testowane na Linuxie, rhel 8
