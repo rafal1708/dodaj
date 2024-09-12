@@ -15,6 +15,10 @@ Dodanie strony z własnym komentarzem lub zmiana/dodanie komentarza do istnieją
 
 <h3>API</h3>
 IP-komputera:5050/api</br>
-Możliwość wyszukiwania wg parametru "author" i "rate", czyli wg oceny książki podanej na stronie.</br>
+Możliwość wyszukiwania wg parametrów:</br>  
+"category" - książki, komiksy, gry komputerowe</br>
+"tag" - dowolne słowo. Wyszukiwany będzie opis danej pozycji i pole z własnym komentarzem</br>
+"author" - wyszukuje w kolumnie "author" pasującego słowa </br>
+"rate" - czyli wg oceny książki/gry podanej na stronie.</br>
 
 Testowane na Linuxie, rhel 8
