@@ -27,7 +27,7 @@ def get_ip():
 
 app = Flask(__name__)
 
-
+@app.route("/")
 @app.route("/ksiazki")
 @app.route("/komiksy")
 @app.route("/gry")
@@ -38,6 +38,8 @@ def ksiazki():
         results = read_sql("książka")
     elif request.path == "/gry":
         results = read_sql("gra komputerowa")
+    else:
+        return render_template("dodaj.html")
     return render_template("dodaj.html", results = results)
 
 
